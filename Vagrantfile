@@ -38,8 +38,8 @@ Vagrant.configure("2") do |config|
 	#end
     config.vm.define :gitlab_config do |gitlab_config|
         gitlab_config.vm.provider "virtualbox" do |vb|
-            vb.memory = "4096"
-            vb.cpus = 4
+            vb.memory = "8096"
+            vb.cpus = 12
             vb.name = "FiiPractic-GitLab"
         end
         gitlab_config.vm.disk :disk, size: "30GB", primary: true
