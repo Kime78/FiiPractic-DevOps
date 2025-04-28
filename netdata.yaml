@@ -1,0 +1,69 @@
+---
+- name: Install Netdata and configure Nginx reverse proxy
+  hosts: app
+  become: true
+
+  vars:
+    netdata_port: 19999
+    basic_auth_user: netdatauser
+    basic_auth_password: netdatapassword
+
+  tasks:
+    - name: Install EPEL repository
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name:
+          - netdata
+          - nginx
+          - httpd-tools  # provides htpasswd
+        state: present
+        update_cache: true
+
+    - name: Ensure Netdata is running
+      ansible.builtin.service:
+        name: netdata
+        state: started
+        enabled: true
+
+    - name: Create basic auth credentials
+      ansible.builtin.command:
+        cmd: htpasswd -bc /etc/nginx/.htpasswd {{ basic_auth_user }} {{ basic_auth_password }}
+      args:
+        creates: /etc/nginx/.htpasswd
+
+    - name: Configure Nginx for Netdata reverse proxy
+      ansible.builtin.copy:
+        dest: /etc/nginx/conf.d/netdata.conf
+        
+        content: |
+          server {
+              listen 80;
+              server_name netdata.fiipractic.lan;
+
+              auth_basic "Restricted Access";
+              auth_basic_user_file /etc/nginx/.htpasswd;
+
+              location / {
+                  proxy_pass http://localhost:{{ netdata_port }}/;
+                  proxy_set_header Host $host;
+                  proxy_http_version 1.1;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Connection "";
+                  proxy_buffering off;
+                  proxy_request_buffering off;
+              }
+          }
+      notify:
+        - Reload nginx
+
+  handlers:
+    - name: Reload nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
