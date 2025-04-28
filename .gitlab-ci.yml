@@ -1,6 +1,8 @@
 #This file is located on the remote machine
 stages:
   - build
+  - format
+  - test
   - push
   - deploy
 
@@ -16,6 +18,26 @@ build-image:
   after_script:
     - echo "Script executed successfully."
     - docker logout
+  tags:
+    - build
+
+format-image:
+  stage: format
+  image: gradle:7.2-jdk11
+  script:
+    - cd springboot
+    - ./gradlew spotlessApply
+  only:
+    - push
+  tags:
+    - build
+
+test:
+  stage: test
+  image: gradle:7.2-jdk11
+  script:
+    - cd springboot
+    - ./gradlew test
   tags:
     - build
 
